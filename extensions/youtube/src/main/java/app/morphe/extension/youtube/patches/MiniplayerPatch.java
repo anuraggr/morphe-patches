@@ -194,6 +194,69 @@ public final class MiniplayerPatch {
         return type.isModern() && type != MINIMAL_BAR && type != MINIMAL_BAR_2;
     }
 
+    /**
+     * Keeps the dropped vertical position and snaps only to the left or right edge.
+     * Called with the fresh corner rect that the stock snap animation is about to use.
+     */
+    public static void adjustSideSnapTarget(
+            Rect target,
+            Rect current,
+            Rect topLeft,
+            Rect topRight,
+            Rect bottomLeft,
+            Rect bottomRight
+    ) {
+        Logger.printDebug(() -> "SideSnap: enabled=" + Settings.MINIPLAYER_SNAP_TO_SIDES.get()
+                + " type=" + Settings.MINIPLAYER_TYPE.get()
+                + " dragDisabled=" + Settings.MINIPLAYER_DISABLE_DRAG_AND_DROP.get()
+                + " current=" + current + " target=" + target
+                + " corners=" + topLeft + "," + topRight + "," + bottomLeft + "," + bottomRight);
+
+        if (!Settings.MINIPLAYER_SNAP_TO_SIDES.get()
+                || Settings.MINIPLAYER_DISABLE_DRAG_AND_DROP.get()) {
+            return;
+        }
+
+        if (target == null || current == null || topLeft == null
+                || topRight == null || bottomLeft == null || bottomRight == null) {
+            return;
+        }
+
+        // Docked mode returns the same rect for every corner. Leave it alone.
+        if (topLeft.equals(topRight) || bottomLeft.equals(bottomRight)) {
+            return;
+        }
+
+        // Do not adjust an uninitialized or fully off-screen rect.
+        if (current.width() <= 0 || current.height() <= 0) {
+            return;
+        }
+
+        DisplayMetrics displayMetrics =
+                Utils.getContext().getResources().getDisplayMetrics();
+        int screenWidth = displayMetrics.widthPixels;
+
+        if (current.right <= 0 || current.left >= screenWidth) {
+            return;
+        }
+
+        // The midpoint between the two side positions, not necessarily the physical
+        // screen center when insets are asymmetric.
+        int sideCenter = (topLeft.right + topRight.left) / 2;
+        boolean leftSide = current.centerX() < sideCenter;
+
+        Rect top = leftSide ? topLeft : topRight;
+        Rect bottom = leftSide ? bottomLeft : bottomRight;
+
+        int minTop = Math.min(top.top, bottom.top);
+        int maxTop = Math.max(top.top, bottom.top);
+        int y = Math.max(minTop, Math.min(current.top, maxTop));
+
+        target.set(top);
+        target.top = y;
+        target.bottom = y + top.height();
+    }
+
     public static final class MiniplayerDragAndDropAvailability implements Setting.Availability {
         @Override
         public boolean isAvailable() {
@@ -203,6 +266,26 @@ public final class MiniplayerPatch {
         @Override
         public List<Setting<?>> getParentSettings() {
             return List.of(Settings.MINIPLAYER_TYPE);
+        }
+    }
+
+    /**
+     * Side snapping does not require a modern miniplayer type: the stock snap method is only
+     * called when the miniplayer is actually draggable. Keep the setting available whenever
+     * drag and drop is enabled.
+     */
+    public static final class MiniplayerSnapToSidesAvailability implements Setting.Availability {
+        @Override
+        public boolean isAvailable() {
+            return !Settings.MINIPLAYER_DISABLE_DRAG_AND_DROP.get();
+        }
+
+        @Override
+        public List<Setting<?>> getParentSettings() {
+            return List.of(
+                    Settings.MINIPLAYER_TYPE,
+                    Settings.MINIPLAYER_DISABLE_DRAG_AND_DROP
+            );
         }
     }
 

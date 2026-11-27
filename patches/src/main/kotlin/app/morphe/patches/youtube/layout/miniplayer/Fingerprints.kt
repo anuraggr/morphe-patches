@@ -272,6 +272,71 @@ internal object MiniplayerOffscreenHandlerFingerprint : Fingerprint(
     )
 )
 
+/**
+ * 21.44-21.46 style:
+ * Y(qza) { m.set(w(qza)); animator.isRunning(); animator.start(); }
+ *
+ * The locations keep this from matching other methods that also call w(),
+ * such as the animation setup method that calls w(), set(), isRunning(), and start()
+ * with many instructions in between.
+ */
+internal object MiniplayerSideSnapLegacyFingerprint : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    returnType = "V",
+    parameters = listOf("L"),
+    filters = listOf(
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            definingClass = "this",
+            parameters = listOf("L"),
+            returnType = "Landroid/graphics/Rect;"
+        ),
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            smali = "Landroid/graphics/Rect;->set(Landroid/graphics/Rect;)V",
+            location = MatchAfterWithin(6)
+        ),
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            smali = "Landroid/animation/ValueAnimator;->isRunning()Z",
+            location = MatchAfterWithin(6)
+        ),
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            smali = "Landroid/animation/ValueAnimator;->start()V",
+            location = MatchAfterWithin(8)
+        )
+    )
+)
+
+/**
+ * 21.47+ style:
+ * W(rbj) { T(o(rbj), false, true); }
+ *
+ * The location keeps this from matching other methods that call o() and T()
+ * with many instructions in between, such as the animation setup method.
+ */
+internal object MiniplayerSideSnapFingerprint : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    returnType = "V",
+    parameters = listOf("L"),
+    filters = listOf(
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            definingClass = "this",
+            parameters = listOf("L"),
+            returnType = "Landroid/graphics/Rect;"
+        ),
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            definingClass = "this",
+            parameters = listOf("Landroid/graphics/Rect;", "Z", "Z"),
+            returnType = "V",
+            location = MatchAfterWithin(6)
+        )
+    )
+)
+
 internal object NextGenWatchLayoutOnInterceptTouchEventFingerprint : Fingerprint(
     definingClass = "Lcom/google/android/apps/youtube/app/watch/nextgenwatch/ui/NextGenWatchLayout;",
     name = "onInterceptTouchEvent",

@@ -33,6 +33,7 @@ import app.morphe.patches.shared.misc.settings.preference.PreferenceScreenPrefer
 import app.morphe.patches.shared.misc.settings.preference.SwitchPreference
 import app.morphe.patches.shared.misc.settings.preference.TextPreference
 import app.morphe.patches.shared.misc.videoformat.hookAdaptiveFormat
+import app.morphe.patches.youtube.interaction.nativeplaylistqueue.addBridgeMethod
 import app.morphe.patches.youtube.layout.player.buttons.addPlayerBottomButton
 import app.morphe.patches.youtube.layout.player.buttons.playerOverlayButtonsHookPatch
 import app.morphe.patches.youtube.misc.extension.sharedExtensionPatch
@@ -97,6 +98,9 @@ val miniplayerPatch = patch(
     execute {
         val preferences = mutableSetOf<BasePreference>()
 
+        val snapMatch = MiniplayerSideSnapFingerprint.matchAllOrNull()?.singleOrNull()
+            ?: MiniplayerSideSnapLegacyFingerprint.matchAllOrNull()?.singleOrNull()
+
         if (is_20_37_or_greater) {
             // 21.29 removed all modern miniplayers except modern 4
             if (!is_21_29_or_greater) {
@@ -132,6 +136,9 @@ val miniplayerPatch = patch(
         preferences += SwitchPreference("morphe_miniplayer_glass", summary = true)
         preferences += SwitchPreference("morphe_miniplayer_disable_rounded_corners")
         preferences += SwitchPreference("morphe_miniplayer_disable_drag_and_drop", summary = true)
+        if (snapMatch != null) {
+            preferences += SwitchPreference("morphe_miniplayer_snap_to_sides", summary = true)
+        }
         preferences += SwitchPreference("morphe_miniplayer_disable_horizontal_drag", summary = true)
         if (!is_21_29_or_greater) {
             preferences += SwitchPreference("morphe_miniplayer_hide_overlay_buttons")
@@ -451,6 +458,64 @@ val miniplayerPatch = patch(
             }
         }
 
+        // endregion
+
+        // region Snap to nearest side
+        if (snapMatch != null) {
+            val cornerMethod = snapMatch.instructionMatches.first().methodReference
+            val enumType = cornerMethod.parameterTypes.single()
+            val controllerType = snapMatch.classDef.type
+            val currentRectField =
+                MiniplayerOffscreenHandlerFingerprint.instructionMatches.first().fieldReference
+
+            val body = """
+                invoke-static { }, $enumType->values()[$enumType
+                move-result-object v0
+
+                const/4 v1, 0x0
+                aget-object v1, v0, v1
+                invoke-virtual { p0, v1 }, $controllerType->${cornerMethod.name}($enumType)Landroid/graphics/Rect;
+                move-result-object v2
+
+                const/4 v1, 0x1
+                aget-object v1, v0, v1
+                invoke-virtual { p0, v1 }, $controllerType->${cornerMethod.name}($enumType)Landroid/graphics/Rect;
+                move-result-object v3
+
+                const/4 v1, 0x2
+                aget-object v1, v0, v1
+                invoke-virtual { p0, v1 }, $controllerType->${cornerMethod.name}($enumType)Landroid/graphics/Rect;
+                move-result-object v4
+
+                const/4 v1, 0x3
+                aget-object v1, v0, v1
+                invoke-virtual { p0, v1 }, $controllerType->${cornerMethod.name}($enumType)Landroid/graphics/Rect;
+                move-result-object v5
+
+                iget-object v1, p0, $currentRectField
+                move-object v0, p1
+                invoke-static/range { v0 .. v5 }, $EXTENSION_CLASS->adjustSideSnapTarget(Landroid/graphics/Rect;Landroid/graphics/Rect;Landroid/graphics/Rect;Landroid/graphics/Rect;Landroid/graphics/Rect;Landroid/graphics/Rect;)V
+                return-void
+            """
+            snapMatch.classDef.addBridgeMethod(
+                name = "patch_adjustSideSnap",
+                parameters = listOf("Landroid/graphics/Rect;"),
+                returnType = "V",
+                locals = 6,
+                body = body
+            )
+
+            val cornerCallIndex = snapMatch.instructionMatches.first().index
+            val rectRegister = snapMatch.method
+                .getInstruction<OneRegisterInstruction>(cornerCallIndex + 1)
+                .registerA
+
+            snapMatch.method.addInstruction(
+                cornerCallIndex + 2,
+                "invoke-virtual { p0, v$rectRegister }, " +
+                    "$controllerType->patch_adjustSideSnap(Landroid/graphics/Rect;)V"
+            )
+        }
         // endregion
 
         // region List rebuilt after exiting fullscreen.

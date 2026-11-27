@@ -1693,6 +1693,8 @@ Automotive layout
     <string name="morphe_miniplayer_disable_rounded_corners_title">Disable rounded corners</string>
     <string name="morphe_miniplayer_disable_drag_and_drop_title">Disable drag and drop</string>
     <string name="morphe_miniplayer_disable_drag_and_drop_summary">Prevents dragging the minimized player to different corners of the screen</string>
+    <string name="morphe_miniplayer_snap_to_sides_title">Snap to nearest side</string>
+    <string name="morphe_miniplayer_snap_to_sides_summary">Keeps the miniplayer at the height it was dropped and snaps only to the left or right edge, instead of the nearest corner</string>
     <string name="morphe_miniplayer_disable_horizontal_drag_title">Disable horizontal drag gesture</string>
     <string name="morphe_miniplayer_disable_horizontal_drag_summary">Prevents closing the miniplayer by swiping it horizontally off-screen</string>
     <string name="morphe_miniplayer_disable_horizontal_drag_playback_title">Pause playback with horizontal drag</string>
